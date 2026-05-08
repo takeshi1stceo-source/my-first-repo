@@ -817,3 +817,265 @@ init();
 </script>
 </body>
 </html>
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>晩御飯献立表</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@latest/dist/tabler-icons.min.css">
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body {
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  background: #f5f5f0;
+  color: #1a1a1a;
+  min-height: 100vh;
+  padding: 20px;
+}
+h1 { text-align: center; font-size: 20px; font-weight: 500; margin-bottom: 1.5rem; color: #1a1a1a; }
+.container { max-width: 800px; margin: 0 auto; }
+.tabs { display: flex; gap: 8px; margin-bottom: 1.5rem; border-bottom: 1px solid #ddd; }
+.tab { padding: 8px 16px; cursor: pointer; font-size: 14px; border: none; background: none; color: #888; border-bottom: 2px solid transparent; margin-bottom: -1px; display: flex; align-items: center; gap: 6px; }
+.tab.active { color: #1a1a1a; border-bottom: 2px solid #1a1a1a; font-weight: 500; }
+.section { display: none; }
+.section.active { display: block; }
+.week-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem; }
+.week-label { font-size: 15px; font-weight: 500; flex: 1; }
+.week-nav button { background: #fff; border: 1px solid #ddd; border-radius: 8px; padding: 6px 12px; cursor: pointer; font-size: 13px; }
+.week-nav button:hover { background: #f0f0f0; }
+.week-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 1.5rem; }
+.day-card { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 10px 8px; }
+.day-name { font-size: 11px; color: #888; margin-bottom: 6px; text-align: center; }
+.day-input { width: 100%; border: none; background: #f5f5f5; border-radius: 6px; padding: 6px 4px; font-size: 12px; color: #1a1a1a; text-align: center; resize: none; min-height: 60px; font-family: inherit; line-height: 1.4; }
+.day-input:focus { outline: none; box-shadow: 0 0 0 2px #ccc; }
+.section-label { font-size: 13px; font-weight: 500; color: #666; margin-bottom: 10px; }
+.btn-row { display: flex; gap: 8px; margin-top: 1rem; flex-wrap: wrap; }
+.save-btn { background: #fff; border: 1px solid #ccc; border-radius: 8px; padding: 8px 20px; cursor: pointer; font-size: 13px; display: flex; align-items: center; gap: 6px; }
+.save-btn:hover { background: #f5f5f5; }
+.primary-btn { background: #1a1a1a; border: none; border-radius: 8px; padding: 8px 20px; cursor: pointer; font-size: 13px; color: #fff; display: flex; align-items: center; gap: 6px; }
+.primary-btn:hover { opacity: 0.85; }
+.shopping-list { margin-top: 1.25rem; }
+.shopping-item { display: flex; align-items: center; gap: 10px; padding: 10px 12px; border-bottom: 1px solid #eee; font-size: 14px; }
+.shopping-item input[type=checkbox] { width: 16px; height: 16px; cursor: pointer; }
+.shopping-item.checked .item-name { text-decoration: line-through; color: #bbb; }
+.remove-btn { margin-left: auto; cursor: pointer; color: #bbb; background: none; border: none; font-size: 16px; }
+.remove-btn:hover { color: #666; }
+.add-item { display: flex; gap: 8px; margin-top: 10px; }
+.add-item input { flex: 1; border: 1px solid #ddd; border-radius: 8px; padding: 8px 10px; font-size: 13px; background: #fff; color: #1a1a1a; }
+.month-nav { display: flex; align-items: center; gap: 12px; margin-bottom: 1.25rem; }
+.month-label { font-size: 15px; font-weight: 500; flex: 1; }
+.month-grid { display: grid; grid-template-columns: repeat(7, 1fr); gap: 4px; }
+.month-header { font-size: 11px; text-align: center; color: #888; padding: 4px 0; }
+.month-cell { background: #fff; border: 1px solid #e0e0e0; border-radius: 8px; padding: 6px 4px; min-height: 64px; }
+.month-cell.empty { background: none; border: none; }
+.month-date { font-size: 11px; color: #888; margin-bottom: 4px; }
+.month-meal { font-size: 10px; color: #1a1a1a; line-height: 1.4; }
+.toast { position: fixed; bottom: 20px; right: 20px; background: #1a1a1a; color: #fff; padding: 10px 18px; border-radius: 8px; font-size: 13px; opacity: 0; transition: opacity 0.3s; pointer-events: none; z-index: 999; }
+.toast.show { opacity: 1; }
+.empty-msg { padding: 16px; color: #888; font-size: 14px; text-align: center; }
+@media (max-width: 600px) {
+  .week-grid { grid-template-columns: repeat(4, 1fr); }
+  .day-name { font-size: 10px; }
+  .day-input { font-size: 11px; min-height: 50px; }
+}
+</style>
+</head>
+<body>
+<div class="container">
+  <h1>🍽️ 晩御飯 献立表</h1>
+  <div class="tabs">
+    <button class="tab active" onclick="switchTab('week')"><i class="ti ti-calendar"></i> 週間献立</button>
+    <button class="tab" onclick="switchTab('shopping')"><i class="ti ti-shopping-cart"></i> 買い物リスト</button>
+    <button class="tab" onclick="switchTab('month')"><i class="ti ti-calendar-month"></i> 月別ビュー</button>
+  </div>
+  <div id="tab-week" class="section active">
+    <div class="week-nav">
+      <button onclick="changeWeek(-1)"><i class="ti ti-chevron-left"></i></button>
+      <span class="week-label" id="week-label"></span>
+      <button onclick="changeWeek(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="week-grid" id="week-grid"></div>
+    <div class="btn-row">
+      <button class="save-btn" onclick="saveWeek()"><i class="ti ti-device-floppy"></i> 保存</button>
+      <button class="primary-btn" onclick="generateShopping()"><i class="ti ti-list"></i> 買い物リスト生成</button>
+    </div>
+  </div>
+  <div id="tab-shopping" class="section">
+    <div class="section-label">今週の買い物リスト</div>
+    <div class="shopping-list" id="shopping-list"></div>
+    <div class="add-item">
+      <input type="text" id="add-item-input" placeholder="食材を追加..." onkeydown="if(event.key==='Enter')addShoppingItem()" />
+      <button class="save-btn" onclick="addShoppingItem()"><i class="ti ti-plus"></i> 追加</button>
+    </div>
+    <div class="btn-row">
+      <button class="save-btn" onclick="clearChecked()">チェック済みを削除</button>
+      <button class="save-btn" onclick="clearAllShopping()">全て削除</button>
+    </div>
+  </div>
+  <div id="tab-month" class="section">
+    <div class="month-nav">
+      <button class="save-btn" onclick="changeMonth(-1)"><i class="ti ti-chevron-left"></i></button>
+      <span class="month-label" id="month-label"></span>
+      <button class="save-btn" onclick="changeMonth(1)"><i class="ti ti-chevron-right"></i></button>
+    </div>
+    <div class="month-grid" id="month-grid"></div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+<script>
+const DAYS = ['月','火','水','木','金','土','日'];
+const MONTHS = ['1月','2月','3月','4月','5月','6月','7月','8月','9月','10月','11月','12月'];
+let allData = JSON.parse(localStorage.getItem('kondate-data') || '{}');
+let shoppingItems = JSON.parse(localStorage.getItem('kondate-shopping') || '[]');
+let currentWeekOffset = 0;
+let currentMonth = new Date().getMonth();
+let currentYear = new Date().getFullYear();
+function getWeekStart(offset) {
+  const d = new Date();
+  const day = d.getDay();
+  const diff = (day === 0 ? -6 : 1 - day);
+  d.setDate(d.getDate() + diff + offset * 7);
+  d.setHours(0,0,0,0);
+  return d;
+}
+function dateKey(d) { return d.toISOString().slice(0,10); }
+function fmtDate(d) { return (d.getMonth()+1) + '/' + d.getDate(); }
+function renderWeek() {
+  const start = getWeekStart(currentWeekOffset);
+  const end = new Date(start); end.setDate(start.getDate()+6);
+  document.getElementById('week-label').textContent = currentYear + '年 ' + fmtDate(start) + ' 〜 ' + fmtDate(end);
+  const grid = document.getElementById('week-grid');
+  grid.innerHTML = '';
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const key = dateKey(d);
+    const val = allData[key] || '';
+    const card = document.createElement('div');
+    card.className = 'day-card';
+    card.innerHTML = `<div class="day-name">${DAYS[i]}<br>${fmtDate(d)}</div><textarea class="day-input" id="meal-${key}" placeholder="献立を入力">${val}</textarea>`;
+    grid.appendChild(card);
+  }
+}
+function changeWeek(dir) { currentWeekOffset += dir; renderWeek(); }
+function saveWeek() {
+  const start = getWeekStart(currentWeekOffset);
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const key = dateKey(d);
+    const el = document.getElementById('meal-'+key);
+    if (el) allData[key] = el.value;
+  }
+  localStorage.setItem('kondate-data', JSON.stringify(allData));
+  showToast('保存しました！');
+}
+const recipeMap = {
+  'カレー':['玉ねぎ','じゃがいも','にんじん','カレールー','鶏肉'],
+  '肉じゃが':['じゃがいも','玉ねぎ','牛肉','しらたき','醤油','みりん'],
+  'から揚げ':['鶏もも肉','醤油','生姜','片栗粉','にんにく'],
+  'ハンバーグ':['合い挽き肉','玉ねぎ','卵','パン粉','ケチャップ'],
+  '肉野菜炒め':['豚肉','もやし','キャベツ','にら','醤油'],
+  'パスタ':['パスタ','トマト缶','玉ねぎ','ベーコン','にんにく'],
+  '餃子':['豚ひき肉','キャベツ','にら','餃子の皮','にんにく'],
+  '豚汁':['豚肉','大根','にんじん','こんにゃく','味噌'],
+  '麻婆豆腐':['豆腐','豚ひき肉','豆板醤','甜麺醤','にんにく'],
+  '鮭の塩焼き':['鮭','塩','レモン'],
+  '煮魚':['魚','醤油','みりん','生姜','砂糖'],
+  '天ぷら':['えび','なす','かぼちゃ','薄力粉','卵'],
+  '野菜炒め':['もやし','キャベツ','にんじん','ピーマン','醤油'],
+  '酢豚':['豚肉','玉ねぎ','ピーマン','にんじん','酢','醤油'],
+  '炒飯':['ご飯','卵','ねぎ','醤油','ごま油'],
+  'オムライス':['ご飯','卵','鶏肉','玉ねぎ','ケチャップ'],
+  'お好み焼き':['キャベツ','豚肉','卵','薄力粉','だし'],
+  'すき焼き':['牛肉','豆腐','ねぎ','白菜','醤油','みりん'],
+  '鍋':['白菜','豆腐','えのき','豚肉','ポン酢'],
+  'シチュー':['鶏肉','じゃがいも','にんじん','玉ねぎ','シチュールー'],
+  '唐揚げ':['鶏もも肉','醤油','生姜','片栗粉','にんにく'],
+  'みそ汁':['豆腐','わかめ','ねぎ','味噌','だし'],
+  '炊き込みご飯':['米','鶏肉','ごぼう','にんじん','醤油'],
+  'グラタン':['鶏肉','マカロニ','玉ねぎ','牛乳','チーズ'],
+};
+function generateShopping() {
+  saveWeek();
+  const start = getWeekStart(currentWeekOffset);
+  const found = new Set();
+  for (let i = 0; i < 7; i++) {
+    const d = new Date(start); d.setDate(start.getDate()+i);
+    const meal = allData[dateKey(d)] || '';
+    if (!meal.trim()) continue;
+    let matched = false;
+    for (const [dish, items] of Object.entries(recipeMap)) {
+      if (meal.includes(dish)) { items.forEach(it => found.add(it)); matched = true; }
+    }
+    if (!matched && meal.trim()) found.add(meal.trim() + '（食材を確認）');
+  }
+  if (found.size === 0) { showToast('献立を入力してから生成してください'); return; }
+  shoppingItems = Array.from(found).map(name => ({ name, checked: false }));
+  localStorage.setItem('kondate-shopping', JSON.stringify(shoppingItems));
+  renderShopping();
+  switchTab('shopping');
+  showToast('買い物リストを生成しました！');
+}
+function renderShopping() {
+  const list = document.getElementById('shopping-list');
+  if (shoppingItems.length === 0) { list.innerHTML = '<div class="empty-msg">買い物リストは空です。<br>週間献立から生成してください。</div>'; return; }
+  list.innerHTML = shoppingItems.map((item, i) =>
+    `<div class="shopping-item${item.checked?' checked':''}">
+      <input type="checkbox" ${item.checked?'checked':''} onchange="toggleItem(${i})" />
+      <span class="item-name">${item.name}</span>
+      <button class="remove-btn" onclick="removeItem(${i})"><i class="ti ti-x"></i></button>
+    </div>`).join('');
+}
+function toggleItem(i) { shoppingItems[i].checked = !shoppingItems[i].checked; localStorage.setItem('kondate-shopping', JSON.stringify(shoppingItems)); renderShopping(); }
+function removeItem(i) { shoppingItems.splice(i, 1); localStorage.setItem('kondate-shopping', JSON.stringify(shoppingItems)); renderShopping(); }
+function addShoppingItem() {
+  const input = document.getElementById('add-item-input');
+  const val = input.value.trim();
+  if (!val) return;
+  shoppingItems.push({ name: val, checked: false });
+  input.value = '';
+  localStorage.setItem('kondate-shopping', JSON.stringify(shoppingItems));
+  renderShopping();
+}
+function clearChecked() { shoppingItems = shoppingItems.filter(it => !it.checked); localStorage.setItem('kondate-shopping', JSON.stringify(shoppingItems)); renderShopping(); }
+function clearAllShopping() { if (!confirm('全ての買い物リストを削除しますか？')) return; shoppingItems = []; localStorage.setItem('kondate-shopping', JSON.stringify(shoppingItems)); renderShopping(); }
+function renderMonth() {
+  document.getElementById('month-label').textContent = currentYear + '年 ' + MONTHS[currentMonth];
+  const grid = document.getElementById('month-grid');
+  grid.innerHTML = DAYS.map(d => `<div class="month-header">${d}</div>`).join('');
+  const firstDay = new Date(currentYear, currentMonth, 1);
+  let startDow = firstDay.getDay();
+  startDow = startDow === 0 ? 6 : startDow - 1;
+  for (let i = 0; i < startDow; i++) grid.innerHTML += '<div class="month-cell empty"></div>';
+  const daysInMonth = new Date(currentYear, currentMonth+1, 0).getDate();
+  for (let d = 1; d <= daysInMonth; d++) {
+    const date = new Date(currentYear, currentMonth, d);
+    const key = dateKey(date);
+    const meal = allData[key] || '';
+    grid.innerHTML += `<div class="month-cell"><div class="month-date">${d}</div><div class="month-meal">${meal}</div></div>`;
+  }
+}
+function changeMonth(dir) {
+  currentMonth += dir;
+  if (currentMonth < 0) { currentMonth = 11; currentYear--; }
+  if (currentMonth > 11) { currentMonth = 0; currentYear++; }
+  renderMonth();
+}
+function switchTab(tab) {
+  document.querySelectorAll('.tab').forEach((t,i) => { t.classList.toggle('active', ['week','shopping','month'][i] === tab); });
+  document.querySelectorAll('.section').forEach(s => s.classList.remove('active'));
+  document.getElementById('tab-'+tab).classList.add('active');
+  if (tab === 'month') renderMonth();
+  if (tab === 'shopping') renderShopping();
+}
+function showToast(msg) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(() => t.classList.remove('show'), 2500);
+}
+renderWeek();
+renderShopping();
+</script>
+</body>
+</html>  
